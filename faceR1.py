@@ -26,6 +26,14 @@ parser.add_argument('--input', '-i', type=str, help='Set input to a specific ima
 parser.add_argument('--model', '-m', type=str, default='face_detection_yunet_2023mar.onnx', help="Set YuNet model file.")
 parser.add_argument('--facenet_model', type=str, default='facenet_model.onnx', help="Path to FaceNet ONNX model.")
 parser.add_argument('--emotion_model', type=str, default='emotion.onnx', help="Path to emotion detection ONNX model.")
+parser.add_argument('--backend_target', '-bt', type=int, default=0,
+                    help='''Choose one of the backend-target pair to run this demo:
+                        {:d}: (default) OpenCV implementation + CPU,
+                        {:d}: CUDA + GPU (CUDA),
+                        {:d}: CUDA + GPU (CUDA FP16),
+                        {:d}: TIM-VX + NPU,
+                        {:d}: CANN + NPU
+                    '''.format(*[x for x in range(len(backend_target_pairs))]))
 parser.add_argument('--conf_threshold', type=float, default=0.9, help='Set minimum confidence for face detection.')
 parser.add_argument('--nms_threshold', type=float, default=0.3, help='Suppress bounding boxes with IOU >= nms_threshold.')
 parser.add_argument('--top_k', type=int, default=5000, help='Keep top_k bounding boxes before NMS.')
