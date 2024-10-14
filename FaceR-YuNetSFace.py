@@ -4,22 +4,43 @@ import pickle
 import os
 import argparse
 
+# Kombinasi backend dan target
+backend_target_pairs = [
+    [cv2.dnn.DNN_BACKEND_OPENCV, cv2.dnn.DNN_TARGET_CPU],
+    [cv2.dnn.DNN_BACKEND_CUDA,   cv2.dnn.DNN_TARGET_CUDA],
+    [cv2.dnn.DNN_BACKEND_CUDA,   cv2.dnn.DNN_TARGET_CUDA_FP16],
+    [cv2.dnn.DNN_BACKEND_TIMVX,  cv2.dnn.DNN_TARGET_NPU],
+    [cv2.dnn.DNN_BACKEND_CANN,   cv2.dnn.DNN_TARGET_NPU]
+]
+
 # Argument parser untuk mengatur parameter input
-parser = argparse.ArgumentParser(description='Simple Face Detection and Recognition')
+parser = argparse.ArgumentParser(description='YuNet and SFace Face Recognition')
 parser.add_argument('--input', '-i', type=str, help='Set input to a specific image; omit if using the camera.')
 parser.add_argument('--model', '-m', type=str, default='face_detection_yunet_2023mar.onnx', help="Set YuNet model file.")
 parser.add_argument('--face_model', type=str, default='face_recognition_sface_2021dec.onnx', help="Set SFace model file.")
-parser.add_argument('--conf_threshold', type=float, default=0.6, help='Set minimum confidence for face detection.')
+parser.add_argument('--backend_target', '-bt', type=int, default=0,
+                    help='''Choose one of the backend-target pairs:
+                        {:d}: (default) OpenCV + CPU,
+                        {:d}: CUDA + GPU (CUDA),
+                        {:d}: CUDA + GPU (CUDA FP16),
+                        {:d}: TIM-VX + NPU,
+                        {:d}: CANN + NPU
+                    '''.format(*[x for x in range(len(backend_target_pairs))]))
+parser.add_argument('--conf_threshold', type=float, default=0.5, help='Set minimum confidence for face detection.')
 parser.add_argument('--nms_threshold', type=float, default=0.3, help='Suppress bounding boxes with IOU >= nms_threshold.')
 parser.add_argument('--embedding_output', type=str, default='face_embeddings.pkl', help="Specify the filename for saved embeddings.")
 parser.add_argument('--save', '-s', action='store_true', help='Save output file with bounding boxes and confidence levels.')
 args = parser.parse_args()
 
+# Tentukan backend dan target berdasarkan parameter
+backend_id = backend_target_pairs[args.backend_target][0]
+target_id = backend_target_pairs[args.backend_target][1]
+
 # Load YuNet model for face detection
 yunet = cv2.FaceDetectorYN.create(
     args.model,
     "",  # Placeholder for the configuration file
-    (320, 320),  # Input size (width, height)
+    (640, 640),  # Input size (width, height)
     args.conf_threshold,  # Confidence threshold
     args.nms_threshold,  # NMS threshold
     5000  # Top K results
