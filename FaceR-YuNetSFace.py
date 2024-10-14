@@ -22,6 +22,10 @@ sface = cv2.FaceRecognizerSF.create(
 # Initialize the webcam
 cap = cv2.VideoCapture(0)
 
+# Set the frame width and height to 640x480
+cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
+cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+
 # Check if webcam opened successfully
 if not cap.isOpened():
     print("Error: Could not open webcam.")
