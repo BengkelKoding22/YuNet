@@ -4,6 +4,9 @@ import pickle
 import os
 import argparse
 
+from yunet import YuNet
+from sface import SFace
+
 # Kombinasi backend dan target
 backend_target_pairs = [
     [cv2.dnn.DNN_BACKEND_OPENCV, cv2.dnn.DNN_TARGET_CPU],
@@ -36,20 +39,22 @@ args = parser.parse_args()
 backend_id = backend_target_pairs[args.backend_target][0]
 target_id = backend_target_pairs[args.backend_target][1]
 
-# Load YuNet model for face detection
-yunet = cv2.FaceDetectorYN.create(
-    args.model,
-    "",  # Placeholder for the configuration file
-    (640, 640),  # Input size (width, height)
-    args.conf_threshold,  # Confidence threshold
-    args.nms_threshold,  # NMS threshold
-    5000  # Top K results
+# Buat instance dari kelas YuNet dengan pengaturan backend dan target
+yunet = YuNet(
+    modelPath=args.model,
+    inputSize=[640, 640],  # Ukuran input untuk deteksi wajah
+    confThreshold=args.conf_threshold,
+    nmsThreshold=args.nms_threshold,
+    topK=5000,
+    backendId=backend_id,
+    targetId=target_id
 )
 
-# Load SFace model for face recognition
-sface = cv2.FaceRecognizerSF.create(
-    args.face_model,
-    ""
+# Buat instance dari kelas SFace dengan pengaturan backend dan target
+sface = SFace(
+    modelPath=args.face_model,
+    backendId=backend_id,
+    targetId=target_id
 )
 
 # Initialize the webcam if input is not specified
@@ -82,10 +87,10 @@ while True:
         break
 
     yunet.setInputSize((frame.shape[1], frame.shape[0]))
-    faces = yunet.detect(frame)
+    faces = yunet.infer(frame)
 
-    if faces[1] is not None:
-        for face in faces[1]:
+    if faces is not None:
+        for face in faces:
             x, y, w, h, conf = face[:5].astype(int)
             cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
 
@@ -96,7 +101,7 @@ while True:
             if face_roi.size == 0 or w < 10 or h < 10:
                 continue
 
-            face_embedding = sface.feature(face_roi).flatten()
+            face_embedding = sface.infer(frame, face).flatten()
             if face_embedding.shape != (128,):
                 continue
 
@@ -107,7 +112,6 @@ while True:
                 for known_label, embeddings in known_face_embeddings.items():
                     for known_embedding in embeddings:
                         similarity = np.dot(face_embedding, known_embedding) / (np.linalg.norm(face_embedding) * np.linalg.norm(known_embedding))
-                        similarity = similarity.item() if np.size(similarity) == 1 else similarity
                         if similarity > max_similarity and similarity > args.conf_threshold:
                             max_similarity = similarity
                             label = f"{known_label} ({similarity:.2f})"
