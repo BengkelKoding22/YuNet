@@ -92,24 +92,36 @@ while True:
         print("Error: Could not read frame.")
         break
 
+    # Start measuring time
+    start_time = cv2.getTickCount()
+
     if not paused:
         yunet.setInputSize((frame.shape[1], frame.shape[0]))
         faces = yunet.infer(frame)
 
         if faces is not None:
+            largest_face = None
+            largest_area = 0  # Menyimpan area wajah terbesar
+
             for face in faces:
                 x, y, w, h, conf = face[:5].astype(int)
-                cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
+                area = w * h  # Hitung area wajah
 
-                if x < 0 or y < 0 or x + w > frame.shape[1] or y + h > frame.shape[0]:
-                    continue
+                if area > largest_area:
+                    largest_area = area
+                    largest_face = face  # Simpan wajah terbesar
+
+            # Jika wajah terbesar ditemukan, proses lebih lanjut
+            if largest_face is not None:
+                x, y, w, h, conf = largest_face[:5].astype(int)
+                cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
 
                 face_roi = frame[y:y+h, x:x+w]
                 if face_roi.size == 0 or w < 10 or h < 10:
                     continue
 
                 # Get face embedding using SFace
-                face_embedding = sface.infer(frame, face).flatten()
+                face_embedding = sface.infer(frame, largest_face).flatten()
                 if face_embedding.shape != (128,):
                     continue
 
@@ -138,6 +150,14 @@ while True:
                 full_label = f"{label} - {emotion_label}"
 
                 cv2.putText(frame, full_label, (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 0), 1)
+
+    # Calculate FPS
+    end_time = cv2.getTickCount()
+    time_elapsed = (end_time - start_time) / cv2.getTickFrequency()
+    fps = 1 / time_elapsed if time_elapsed > 0 else 0
+
+    # Display FPS
+    cv2.putText(frame, f"FPS: {fps:.2f}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 0), 1)
 
     cv2.imshow("Face and Emotion Recognition", frame)
 
