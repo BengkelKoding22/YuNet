@@ -42,7 +42,7 @@ target_id = backend_target_pairs[args.backend_target][1]
 # Buat instance dari kelas YuNet dengan pengaturan backend dan target
 yunet = YuNet(
     modelPath=args.model,
-    inputSize=[640, 640],  # Ukuran input untuk deteksi wajah
+    inputSize=[320, 320],  # Ukuran input untuk deteksi wajah
     confThreshold=args.conf_threshold,
     nmsThreshold=args.nms_threshold,
     topK=5000,
