@@ -11,10 +11,10 @@ from facial_fer_model import FacialExpressionRecog  # Pastikan ini sesuai dengan
 # Kombinasi backend dan target
 backend_target_pairs = [
     [cv2.dnn.DNN_BACKEND_OPENCV, cv2.dnn.DNN_TARGET_CPU],
-    [cv2.dnn.DNN_BACKEND_CUDA,   cv2.dnn.DNN_TARGET_CUDA],
-    [cv2.dnn.DNN_BACKEND_CUDA,   cv2.dnn.DNN_TARGET_CUDA_FP16],
-    [cv2.dnn.DNN_BACKEND_TIMVX,  cv2.dnn.DNN_TARGET_NPU],
-    [cv2.dnn.DNN_BACKEND_CANN,   cv2.dnn.DNN_TARGET_NPU]
+    [cv2.dnn.DNN_BACKEND_CUDA, cv2.dnn.DNN_TARGET_CUDA],
+    [cv2.dnn.DNN_BACKEND_CUDA, cv2.dnn.DNN_TARGET_CUDA_FP16],
+    [cv2.dnn.DNN_BACKEND_TIMVX, cv2.dnn.DNN_TARGET_NPU],
+    [cv2.dnn.DNN_BACKEND_CANN, cv2.dnn.DNN_TARGET_NPU]
 ]
 
 # Argument parser untuk mengatur parameter input
@@ -31,7 +31,7 @@ parser.add_argument('--backend_target', '-bt', type=int, default=0,
                         {:d}: TIM-VX + NPU,
                         {:d}: CANN + NPU
                     '''.format(*[x for x in range(len(backend_target_pairs))]))
-parser.add_argument('--conf_threshold', type=float, default=0.5, help='Set minimum confidence for face detection.')
+parser.add_argument('--conf_threshold', type=float, default=0.4, help='Set minimum confidence for face detection.')
 args = parser.parse_args()
 
 # Tentukan backend dan target berdasarkan parameter
@@ -100,20 +100,8 @@ while True:
         faces = yunet.infer(frame)
 
         if faces is not None:
-            largest_face = None
-            largest_area = 0  # Menyimpan area wajah terbesar
-
             for face in faces:
                 x, y, w, h, conf = face[:5].astype(int)
-                area = w * h  # Hitung area wajah
-
-                if area > largest_area:
-                    largest_area = area
-                    largest_face = face  # Simpan wajah terbesar
-
-            # Jika wajah terbesar ditemukan, proses lebih lanjut
-            if largest_face is not None:
-                x, y, w, h, conf = largest_face[:5].astype(int)
                 cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
 
                 face_roi = frame[y:y+h, x:x+w]
@@ -121,7 +109,7 @@ while True:
                     continue
 
                 # Get face embedding using SFace
-                face_embedding = sface.infer(frame, largest_face).flatten()
+                face_embedding = sface.infer(frame, face).flatten()
                 if face_embedding.shape != (128,):
                     continue
 
@@ -162,23 +150,6 @@ while True:
     cv2.imshow("Face and Emotion Recognition", frame)
 
     key = cv2.waitKey(1)
-
-    # Kontrol tombol
-    if key == ord('p'):  # Tombol untuk pause
-        paused = not paused
-        if paused:
-            print("Paused. Press any key to save embeddings.")
-            label = input("Enter label for the embedding: ")  # Input label dari pengguna
-    elif paused and key != -1:  # Saat dalam kondisi pause, simpan embeddings
-        # Simpan embeddings saat di pause
-        if label != "Unknown":
-            if label not in known_face_embeddings:
-                known_face_embeddings[label] = []
-            known_face_embeddings[label].append(face_embedding)
-
-            with open(embedding_file, 'wb') as file:
-                pickle.dump(known_face_embeddings, file)
-            print(f"Saved embeddings for {label}.")
 
     if key == ord('q'):  # Tombol untuk keluar
         break
