@@ -3,10 +3,11 @@ import numpy as np
 import pickle
 import os
 import argparse
+import time
 
 from yunet import YuNet
 from sface import SFace
-from facial_fer_model import FacialExpressionRecog  # Pastikan ini sesuai dengan file Anda
+from facial_fer_model import FacialExpressionRecog
 
 # Kombinasi backend dan target
 backend_target_pairs = [
@@ -41,7 +42,7 @@ target_id = backend_target_pairs[args.backend_target][1]
 # Buat instance dari kelas YuNet dengan pengaturan backend dan target
 yunet = YuNet(
     modelPath=args.model,
-    inputSize=[320, 320],  # Ukuran input untuk deteksi wajah
+    inputSize=[320, 320],
     confThreshold=args.conf_threshold,
     nmsThreshold=0.3,
     topK=5000,
@@ -72,7 +73,7 @@ if not cap.isOpened():
     exit()
 
 # Load known face embeddings from the saved file
-embedding_file = 'saved_embeddings.pkl'  # File untuk embeddings yang disimpan
+embedding_file = 'saved_embeddings.pkl'
 known_face_embeddings = {}
 
 if os.path.exists(embedding_file):
@@ -82,8 +83,18 @@ if os.path.exists(embedding_file):
 else:
     print("No saved embeddings found. Starting with empty embeddings.")
 
+# Metrics variables
+frame_count = 0
+fps_sum = 0
+inference_time_sum = 0
+cosine_similarity_sum = 0
+similarity_count = 0
+
 # Flag untuk pause
 paused = False
+
+# Start time to skip initial frames
+start_program_time = time.time()
 
 # Main loop for real-time face detection, recognition, and emotion detection
 while True:
@@ -124,13 +135,18 @@ while True:
                                 max_similarity = similarity
                                 label = f"{known_label} ({similarity:.2f})"
 
+                    # Update cosine similarity sum and count only for detected bounding boxes
+                    if max_similarity > 0:
+                        cosine_similarity_sum += max_similarity
+                        similarity_count += 1
+
                 # Emotion Recognition
-                input_blob = cv2.dnn.blobFromImage(face_roi, 1/255.0, (112, 112))  # Resize to the expected input size for your model
+                input_blob = cv2.dnn.blobFromImage(face_roi, 1/255.0, (112, 112))
                 emotion_recognition._model.setInput(input_blob)
                 emotion_preds = emotion_recognition._model.forward()
                 emotion_id = np.argmax(emotion_preds)
 
-                # Define emotion labels (adjust according to your model)
+                # Define emotion labels
                 emotion_labels = ["angry", "disgust", "fearful", "happy", "neutral", "sad", "surprised"]
                 emotion_label = emotion_labels[emotion_id] if emotion_id < len(emotion_labels) else "Unknown"
 
@@ -144,6 +160,12 @@ while True:
     time_elapsed = (end_time - start_time) / cv2.getTickFrequency()
     fps = 1 / time_elapsed if time_elapsed > 0 else 0
 
+    # Update metrics only after 1 second
+    if time.time() - start_program_time > 1:
+        fps_sum += fps
+        inference_time_sum += time_elapsed
+        frame_count += 1
+
     # Display FPS
     cv2.putText(frame, f"FPS: {fps:.2f}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 0), 1)
 
@@ -151,8 +173,18 @@ while True:
 
     key = cv2.waitKey(1)
 
-    if key == ord('q'):  # Tombol untuk keluar
+    if key == ord('q'):  # Exit on 'q'
         break
 
 cap.release()
 cv2.destroyAllWindows()
+
+# Calculate averages
+average_fps = fps_sum / frame_count if frame_count > 0 else 0
+average_inference_time = inference_time_sum / frame_count if frame_count > 0 else 0
+average_cosine_similarity = cosine_similarity_sum / similarity_count if similarity_count > 0 else 0
+
+# Print metrics
+print(f"Average FPS: {average_fps:.2f}")
+print(f"Average Inference Time: {average_inference_time:.4f} seconds")
+print(f"Average Cosine Similarity: {average_cosine_similarity:.4f}")
