@@ -90,6 +90,11 @@ inference_time_sum = 0
 cosine_similarity_sum = 0
 similarity_count = 0
 
+# Array storage for 10-second metrics
+fps_array = []
+inference_time_array = []
+cosine_similarity_array = []
+
 # Flag untuk pause
 paused = False
 
@@ -165,6 +170,25 @@ while True:
         fps_sum += fps
         inference_time_sum += time_elapsed
         frame_count += 1
+
+        # Store metrics for 10-second intervals
+        fps_array.append(fps)
+        inference_time_array.append(time_elapsed)
+        if similarity_count > 0:
+            cosine_similarity_array.append(cosine_similarity_sum / similarity_count)
+
+        # Reset similarity metrics
+        cosine_similarity_sum = 0
+        similarity_count = 0
+
+        # Print averages for 10-second intervals
+        if len(fps_array) == 10:
+            print(f"Average FPS (10s): {fps_array}")
+            print(f"Average Inference Time (10s): {inference_time_array}")
+            print(f"Average Cosine Similarity (10s): {cosine_similarity_array}")
+            fps_array.clear()
+            inference_time_array.clear()
+            cosine_similarity_array.clear()
 
     # Display FPS
     cv2.putText(frame, f"FPS: {fps:.2f}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 0), 1)
