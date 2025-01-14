@@ -90,10 +90,8 @@ inference_time_sum = 0
 cosine_similarity_sum = 0
 similarity_count = 0
 
-# Array storage for 10-second metrics
-fps_array = []
-inference_time_array = []
-cosine_similarity_array = []
+# Initialize an empty array to store inference times
+inference_times = []
 
 # Flag untuk pause
 paused = False
@@ -124,8 +122,18 @@ while True:
                 if face_roi.size == 0 or w < 10 or h < 10:
                     continue
 
-                # Get face embedding using SFace
+                # Measure inference time for SFace only
+                sface_start_time = time.time()
                 face_embedding = sface.infer(frame, face).flatten()
+                sface_end_time = time.time()
+                inference_time = sface_end_time - sface_start_time
+
+                # Add the inference time to the array
+                inference_times.append(inference_time)
+
+                # Update inference time sum for SFace only
+                inference_time_sum += inference_time
+
                 if face_embedding.shape != (128,):
                     continue
 
@@ -165,30 +173,9 @@ while True:
     time_elapsed = (end_time - start_time) / cv2.getTickFrequency()
     fps = 1 / time_elapsed if time_elapsed > 0 else 0
 
-    # Update metrics only after 1 second
-    if time.time() - start_program_time > 1:
-        fps_sum += fps
-        inference_time_sum += time_elapsed
-        frame_count += 1
-
-        # Store metrics for 10-second intervals
-        fps_array.append(fps)
-        inference_time_array.append(time_elapsed)
-        if similarity_count > 0:
-            cosine_similarity_array.append(cosine_similarity_sum / similarity_count)
-
-        # Reset similarity metrics
-        cosine_similarity_sum = 0
-        similarity_count = 0
-
-        # Print averages for 10-second intervals
-        if len(fps_array) == 10:
-            print(f"Average FPS (10s): {fps_array}")
-            print(f"Average Inference Time (10s): {inference_time_array}")
-            print(f"Average Cosine Similarity (10s): {cosine_similarity_array}")
-            fps_array.clear()
-            inference_time_array.clear()
-            cosine_similarity_array.clear()
+    # Update metrics every frame
+    fps_sum += fps
+    frame_count += 1
 
     # Display FPS
     cv2.putText(frame, f"FPS: {fps:.2f}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 0), 1)
@@ -210,5 +197,8 @@ average_cosine_similarity = cosine_similarity_sum / similarity_count if similari
 
 # Print metrics
 print(f"Average FPS: {average_fps:.2f}")
-print(f"Average Inference Time: {average_inference_time:.4f} seconds")
+print(f"Average Inference Time (SFace): {average_inference_time:.4f} seconds")
 print(f"Average Cosine Similarity: {average_cosine_similarity:.4f}")
+
+# Print the array of inference times
+print(f"Inference times array: {inference_times}")
